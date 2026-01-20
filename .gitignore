@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables
+.env
+
+# IDE - PyCharm / IntelliJ IDEA
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Docker
+docker-compose.override.yml
+
+# Google Cloud Service Account
+mi4u-303100-66ee217229dd.json
+
+# Pytest
+.pytest_cache/

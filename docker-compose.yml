@@ -1,0 +1,6 @@
+services:
+  web:
+    build: .
+    container_name: mi4u-cross
+    ports:
+      - "80:80"
