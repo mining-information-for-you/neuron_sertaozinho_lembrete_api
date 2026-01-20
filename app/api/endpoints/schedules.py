@@ -1,4 +1,6 @@
 import jwt
+import unicodedata
+import re
 from datetime import date, time, datetime
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -146,14 +148,21 @@ async def update_response(
 ):
     try:
         if resposta:
-            # Normalização da resposta
-            resposta_normalized = " ".join(resposta.split()).upper().replace('Ã', 'A').replace('Ç', 'C')
-
-            if resposta_normalized in ['NAO CONFIRMO', 'NAOCONFIRMO']:
+            # Normalização da resposta: Remove TODOS os espaços (incluindo Unicode invisíveis)
+            # Normaliza acentos usando unicodedata
+            resposta_normalized = unicodedata.normalize('NFKD', resposta)
+            # Remove acentos
+            resposta_normalized = ''.join([c for c in resposta_normalized if not unicodedata.combining(c)])
+            # Converte para maiúsculas
+            resposta_normalized = resposta_normalized.upper()
+            # Remove TODOS os caracteres de espaço (incluindo invisíveis)
+            resposta_normalized = re.sub(r'\s+', '', resposta_normalized)
+            
+            if resposta_normalized == 'NAOCONFIRMO':
                 resposta = 'NAOCONFIRMO'
             elif resposta_normalized == 'CONFIRMO':
                 resposta = 'CONFIRMO'
-            elif resposta_normalized in ['NAO CONHECO', 'NAOCONHECO']:
+            elif resposta_normalized == 'NAOCONHECO':
                 resposta = 'NAOCONHECO'
 
         conn = await get_db_connection()
