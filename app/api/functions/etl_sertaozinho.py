@@ -15,8 +15,9 @@ def pdf_to_text(pdf_file: BytesIO) -> str:
     text = ""
     with pdfplumber.open(pdf_file) as pdf:
         for page in pdf.pages:
-            if page.extract_text():
-                text += page.extract_text() + "\n"
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
     return text
 
 
@@ -42,7 +43,6 @@ def parse_header(text: str) -> Dict:
     if m:
         header["especialidade"] = m.group(1).strip()
 
-    print("[DEBUG] HEADER EXTRAÍDO:", header)
     return header
 
 
@@ -50,13 +50,9 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
     pdf_file.seek(0)
     dados_extraidos = []
 
-    print("\n[DEBUG] Iniciando leitura do PDF...")
-
     with pdfplumber.open(pdf_file) as pdf:
-        for page_idx, page in enumerate(pdf.pages):
+        for page in pdf.pages:
             tables = page.extract_tables()
-            print(f"[DEBUG] Página {page_idx} | Tabelas encontradas: {len(tables)}")
-
             for table in tables:
                 for row in table:
                     clean_row = [
@@ -67,9 +63,6 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
                         dados_extraidos.append(clean_row)
 
     df = pd.DataFrame(dados_extraidos)
-
-    print("\n[DEBUG] DATAFRAME COMPLETO:")
-    print(df)
 
     colunas_sugeridas = [
         "Prontuario", "Nome Paciente", "Idade", "CNS", "Tel.Cell",
@@ -87,17 +80,11 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
 
     pacientes = []
 
-    for idx, row in df.iterrows():
-        print(f"\n[DEBUG] Processando linha {idx}")
-        print("[DEBUG] Conteúdo da linha:", row.to_dict())
-
+    for _, row in df.iterrows():
         try:
             nome = str(row["Nome Paciente"]).strip()
             linha_completa = " ".join(str(v) for v in row.values)
 
-            print("[DEBUG] Linha completa concatenada:", linha_completa)
-
-            # 🔥 CNS CORRETO (13 + 2 dígitos quebrados)
             numeros = re.findall(r"\b\d+\b", linha_completa)
             cns = None
             for i in range(len(numeros) - 1):
@@ -105,8 +92,6 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
                 if len(combinado) == 15:
                     cns = combinado
                     break
-
-            print("[DEBUG] CNS final:", cns)
 
             tel_match = re.search(r"\b\d{10,11}\b", linha_completa)
 
@@ -130,10 +115,7 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
                         "%d/%m/%Y %H:%M"
                     )
 
-            print("[DEBUG] Data/Hora final:", data_hora)
-
             if not nome or not cns or not data_hora:
-                print("[DEBUG] ❌ Linha descartada")
                 continue
 
             pacientes.append({
@@ -145,13 +127,9 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
                 "status": "AGENDADO",
             })
 
-            print("[DEBUG] ✔ Paciente adicionado")
-
-        except Exception as e:
-            print("[DEBUG] ✘ Erro ao processar linha:", e)
+        except Exception:
             continue
 
-    print(f"\n[DEBUG] TOTAL DE PACIENTES EXTRAÍDOS: {len(pacientes)}")
     return pacientes
 
 
@@ -238,6 +216,5 @@ async def etl_sertaozinho(
             header,
             pacientes
         )
-        print("[SUCCESS] Dados inseridos no banco com sucesso.")
     finally:
         await close_db_connection(conn)
