@@ -145,6 +145,17 @@ async def update_response(
         resposta: str,
 ):
     try:
+        if resposta:
+            # Normalização da resposta
+            resposta_normalized = " ".join(resposta.split()).upper().replace('Ã', 'A').replace('Ç', 'C')
+
+            if resposta_normalized in ['NAO CONFIRMO', 'NAOCONFIRMO']:
+                resposta = 'NAOCONFIRMO'
+            elif resposta_normalized == 'CONFIRMO':
+                resposta = 'CONFIRMO'
+            elif resposta_normalized in ['NAO CONHECO', 'NAOCONHECO']:
+                resposta = 'NAOCONHECO'
+
         conn = await get_db_connection()
         dt_resposta = datetime.now().replace(microsecond=0)
 
