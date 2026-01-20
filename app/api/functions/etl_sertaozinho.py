@@ -154,20 +154,17 @@ async def insert_data(
             company_id,
             header.get("unidade_saude"),
             header.get("profissional"),
-            header.get("crm_profissional"),
             header.get("especialidade"),
-            header.get("data_atendimento"),
-            p["data_hora_agendamento"],
+            p["data_hora_agendamento"].date(),
             p["paciente"],
-            p["cns"],
+            int(p["cns"]),
             p["telefone"],
-            p["classificacao"],
-            p["status"],
             data_hora_enviar,
             data_hora_upload,
             filename,
             user_id,
             nome_usuario,
+            p["data_hora_agendamento"].time(),
         )
         for p in pacientes
     ]
@@ -175,15 +172,15 @@ async def insert_data(
     await conn.executemany(
         """
         INSERT INTO lembrete_sertaozinho (
-            empresa_id, unidade_saude, profissional, crm_profissional,
-            especialidade, data_atendimento, data_hora_agendamento,
-            paciente, cns, telefone, classificacao, status,
+            empresa_id, unidade_executante, profissional,
+            especialidade, data_agenda,
+            paciente, codigo, telefone,
             data_hora_enviar, data_hora_upload, nome_arquivo,
-            id_usuario, nome_usuario
+            id_usuario, nome_usuario, horario
         )
         VALUES (
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-            $11,$12,$13,$14,$15,$16,$17
+            $11,$12,$13,$14
         )
         """,
         valores
