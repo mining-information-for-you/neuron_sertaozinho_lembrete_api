@@ -157,7 +157,7 @@ async def insert_data(
             header.get("especialidade"),
             p["data_hora_agendamento"].date(),
             p["paciente"],
-            int(p["cns"]),
+            p["cns"],
             p["telefone"],
             data_hora_enviar,
             data_hora_upload,
