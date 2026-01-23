@@ -1,13 +1,13 @@
+import re
 from datetime import datetime
 from io import BytesIO
-from typing import List, Dict
-import re
+from typing import Dict, List
 
-import pdfplumber
 import pandas as pd
+import pdfplumber
 from asyncpg import Connection
 
-from ...db import get_db_connection, close_db_connection
+from ...db import close_db_connection, get_db_connection
 
 
 def pdf_to_text(pdf_file: BytesIO) -> str:
@@ -24,22 +24,20 @@ def pdf_to_text(pdf_file: BytesIO) -> str:
 def parse_header(text: str) -> Dict:
     header = {}
 
-    m = re.search(r'Unidade de Saúde\s+(.*)', text)
+    m = re.search(r"Unidade de Saúde\s+(.*)", text)
     if m:
         header["unidade_saude"] = m.group(1).strip()
 
-    m = re.search(r'Data Atendimento\s+(\d{2}/\d{2}/\d{4})', text)
+    m = re.search(r"Data Atendimento\s+(\d{2}/\d{2}/\d{4})", text)
     if m:
-        header["data_atendimento"] = datetime.strptime(
-            m.group(1), "%d/%m/%Y"
-        ).date()
+        header["data_atendimento"] = datetime.strptime(m.group(1), "%d/%m/%Y").date()
 
-    m = re.search(r'Profissional:\s+(.*?)\s+CRM[:\s]*(\d+)', text)
+    m = re.search(r"Profissional:\s+(.*?)\s+CRM[:\s]*(\d+)", text)
     if m:
         header["profissional"] = m.group(1).strip()
         header["crm_profissional"] = m.group(2).strip()
 
-    m = re.search(r'Especialidade:\s+(.*)', text)
+    m = re.search(r"Especialidade:\s+(.*)", text)
     if m:
         header["especialidade"] = m.group(1).strip()
 
@@ -56,7 +54,7 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
             for table in tables:
                 for row in table:
                     clean_row = [
-                        str(cell).replace('\n', ' ').strip() if cell else ''
+                        str(cell).replace("\n", " ").strip() if cell else ""
                         for cell in row
                     ]
                     if any(clean_row):
@@ -65,14 +63,21 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
     df = pd.DataFrame(dados_extraidos)
 
     colunas_sugeridas = [
-        "Prontuario", "Nome Paciente", "Idade", "CNS", "Tel.Cell",
-        "Data/Hora Agendamento", "Data/Hora Recepção",
-        "Data/Hora Atendimento", "Data/Hora Encerramento",
-        "Status", "Assinatura"
+        "Prontuario",
+        "Nome Paciente",
+        "Idade",
+        "CNS",
+        "Tel.Cell",
+        "Data/Hora Agendamento",
+        "Data/Hora Recepção",
+        "Data/Hora Atendimento",
+        "Data/Hora Encerramento",
+        "Status",
+        "Assinatura",
     ]
 
     if df.shape[1] >= len(colunas_sugeridas):
-        df = df.iloc[:, :len(colunas_sugeridas)]
+        df = df.iloc[:, : len(colunas_sugeridas)]
         df.columns = colunas_sugeridas
 
         if not df.empty and df.iloc[0]["Nome Paciente"] == "Nome Paciente":
@@ -100,9 +105,7 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
 
             if campo_data_hora:
                 try:
-                    data_hora = datetime.strptime(
-                        campo_data_hora, "%d/%m/%Y %H:%M"
-                    )
+                    data_hora = datetime.strptime(campo_data_hora, "%d/%m/%Y %H:%M")
                 except ValueError:
                     data_hora = None
 
@@ -111,21 +114,22 @@ def parse_patients_tables(pdf_file: BytesIO) -> List[Dict]:
                 hora_match = re.search(r"\b\d{2}:\d{2}\b", linha_completa)
                 if data_match and hora_match:
                     data_hora = datetime.strptime(
-                        f"{data_match.group()} {hora_match.group()}",
-                        "%d/%m/%Y %H:%M"
+                        f"{data_match.group()} {hora_match.group()}", "%d/%m/%Y %H:%M"
                     )
 
             if not nome or not cns or not data_hora:
                 continue
 
-            pacientes.append({
-                "paciente": nome.title(),
-                "cns": cns,
-                "telefone": tel_match.group() if tel_match else None,
-                "data_hora_agendamento": data_hora,
-                "classificacao": "CONSULTA",
-                "status": "AGENDADO",
-            })
+            pacientes.append(
+                {
+                    "paciente": nome.title(),
+                    "cns": cns,
+                    "telefone": tel_match.group() if tel_match else None,
+                    "data_hora_agendamento": data_hora,
+                    "classificacao": "CONSULTA",
+                    "status": "AGENDADO",
+                }
+            )
 
         except Exception:
             continue
@@ -145,8 +149,7 @@ async def insert_data(
 ) -> None:
 
     nome_usuario = await conn.fetchval(
-        "SELECT nomecompleto FROM usuarios WHERE id = $1",
-        user_id
+        "SELECT nomecompleto FROM usuarios WHERE id = $1", user_id
     )
 
     valores = [
@@ -183,7 +186,7 @@ async def insert_data(
             $11,$12,$13,$14
         )
         """,
-        valores
+        valores,
     )
 
 
@@ -193,7 +196,7 @@ async def etl_sertaozinho(
     user_id: int,
     data_hora_enviar: datetime,
     data_hora_upload: datetime,
-    blob_file: BytesIO
+    blob_file: BytesIO,
 ) -> None:
 
     header_text = pdf_to_text(blob_file)
@@ -211,7 +214,7 @@ async def etl_sertaozinho(
             data_hora_enviar,
             data_hora_upload,
             header,
-            pacientes
+            pacientes,
         )
     finally:
         await close_db_connection(conn)
