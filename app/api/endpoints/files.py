@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from google.cloud import storage
 
 from ...db import close_db_connection, get_db_connection
+from ..functions.etl_cross import etl
 from ..functions.etl_sertaozinho import etl_sertaozinho
 from ..functions.utils import require_valid_token
 
@@ -69,6 +70,8 @@ async def post_file(
     mi4u_access_token: str,
     data_hora_enviar: datetime = Query(None),
     file: UploadFile = File(...),
+    tipo_envio: str = Query(None),
+    template_id: int = Query(None),
 ):
     # 🔐 Token MI4U
     try:
@@ -85,10 +88,12 @@ async def post_file(
         )
 
     # 📄 Validação do arquivo
-    if not file.filename.lower().endswith(".pdf"):
+    if file.filename.lower().endswith(".pdf") or file.filename.lower().endswith(".xls"):
+        print(file.filename.lower())
+    else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Apenas arquivos PDF são suportados",
+            detail="Apenas arquivos PDF e XLS são suportados",
         )
 
     upload_date = datetime.now()
@@ -104,22 +109,49 @@ async def post_file(
         bucket = client.get_bucket(BUCKET_NAME)
         blob = bucket.blob(destination_blob_name)
 
-        # ☁️ Upload
-        blob.upload_from_file(file.file, content_type="application/pdf")
+        if file.filename.lower().endswith(".pdf"):
 
-        # ⬇️ Download para ETL
-        file_bytes = blob.download_as_bytes()
-        file_io = BytesIO(file_bytes)
+            # ☁️ Upload
+            blob.upload_from_file(file.file, content_type="application/pdf")
 
-        # 🔄 ETL Sertãozinho
-        await etl_sertaozinho(
-            company_id=company_id,
-            user_id=user_id,
-            data_hora_enviar=data_hora_enviar,
-            data_hora_upload=upload_date,
-            filename=filename,
-            blob_file=file_io,
-        )
+            # ⬇️ Download para ETL
+            file_bytes = blob.download_as_bytes()
+            file_io = BytesIO(file_bytes)
+
+            # 🔄 ETL Sertãozinho
+            await etl_sertaozinho(
+                company_id=company_id,
+                user_id=user_id,
+                data_hora_enviar=data_hora_enviar,
+                data_hora_upload=upload_date,
+                filename=filename,
+                blob_file=file_io,
+                template_id=template_id,
+                tipo_envio=tipo_envio,
+            )
+
+        elif file.filename.lower().endswith(".xls"):
+
+            blob.upload_from_file(file.file, content_type=file.content_type)
+
+            upload_date = datetime.now()
+            upload_date_to_filename = upload_date.strftime("%Y-%m-%d-%H:%M")
+            upload_date_to_database = upload_date.strftime("%Y-%m-%d %H:%M:%S")
+
+            downloaded_blob = bucket.blob(destination_blob_name)
+            file_content = downloaded_blob.download_as_bytes()
+            file_io = BytesIO(file_content)
+
+            await etl(
+                company_id=company_id,
+                user_id=user_id,
+                data_hora_enviar=data_hora_enviar,
+                data_hora_upload=upload_date_to_database,
+                filename=filename,
+                blob_file=file_io,
+                tipo_envio=tipo_envio,
+                template_id=template_id,
+            )
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,

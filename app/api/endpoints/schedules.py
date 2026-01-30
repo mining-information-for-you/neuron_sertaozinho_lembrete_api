@@ -36,6 +36,7 @@ async def get_schedule(
     nome_arquivo: str = Query(None),
     id_usuario: int = Query(None),
     nome_usuario: str = Query(None),
+    tipo_envio: str = Query(None),
 ):
     try:
         decoded_token = jwt.decode(
@@ -93,6 +94,7 @@ async def get_schedule(
             "nome_arquivo": nome_arquivo,
             "id_usuario": id_usuario,
             "nome_usuario": nome_usuario,
+            "tipo_envio": tipo_envio,
         }
 
         param_index = 1

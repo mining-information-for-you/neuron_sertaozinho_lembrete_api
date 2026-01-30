@@ -146,6 +146,8 @@ async def insert_data(
     data_hora_upload: datetime,
     header: Dict,
     pacientes: List[Dict],
+    tipo_envio: str,
+    template_id: int,
 ) -> None:
 
     nome_usuario = await conn.fetchval(
@@ -168,6 +170,8 @@ async def insert_data(
             user_id,
             nome_usuario,
             p["data_hora_agendamento"].time(),
+            template_id,
+            tipo_envio,
         )
         for p in pacientes
     ]
@@ -179,11 +183,11 @@ async def insert_data(
             especialidade, data_agenda,
             paciente, codigo, telefone,
             data_hora_enviar, data_hora_upload, nome_arquivo,
-            id_usuario, nome_usuario, horario
+            id_usuario, nome_usuario, horario, template_id, tipo_envio
         )
         VALUES (
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-            $11,$12,$13,$14
+            $11,$12,$13,$14,$15,$16
         )
         """,
         valores,
@@ -197,6 +201,8 @@ async def etl_sertaozinho(
     data_hora_enviar: datetime,
     data_hora_upload: datetime,
     blob_file: BytesIO,
+    tipo_envio: str,
+    template_id: int,
 ) -> None:
 
     header_text = pdf_to_text(blob_file)
@@ -215,6 +221,8 @@ async def etl_sertaozinho(
             data_hora_upload,
             header,
             pacientes,
+            tipo_envio,
+            template_id,
         )
     finally:
         await close_db_connection(conn)
